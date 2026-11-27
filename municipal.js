@@ -8,9 +8,10 @@
   const days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   const categories = ['Aviso de recolección','Cambio de horario','Modificación de ruta',
     'Suspensión del servicio','Campaña de limpieza','Comunicado de emergencia'];
+  const incidentTypes = ['Calle bloqueada','Vehículo averiado','Basura acumulada','Problema con residentes','Otro'];
   const sections = [
     ['overview','Resumen','home'], ['trucks','Camiones','truck'],
-    ['routes','Rutas','map'], ['announcements','Comunicados','bell'],
+    ['routes','Rutas','map'], ['announcements','Comunicados','bell'], ['incidents','Incidencias','bell'],
   ];
   const labels = {available:'Disponible',maintenance:'En mantenimiento',on_route:'En ruta',
     running:'En ruta',paused:'En pausa',finished:'Recolección completada'};
@@ -123,7 +124,7 @@
   async function open(profile) {
     const revision=++state.revision;
     Object.assign(state,{profile,account:null,data:null,district:'',section:'overview',location:'',
-      editor:null,visibleMap:null,notice:'',error:'',busy:false,register:false});
+      editor:null,visibleMap:null,incidents:null,notice:'',error:'',busy:false,register:false});
     app.mount();
     render();
     if (!api) return;
@@ -224,10 +225,12 @@
         ' Cartografía © OpenStreetMap.</p></article>':'');
   }
 
-  function announcementCards(list) {
+  function announcementCards(list,canDelete=false) {
     return list.length?list.map(a=>'<article class="muni-card">'+tag(a.category)+
       '<h3>'+esc(a.title)+'</h3><p>'+esc(a.message)+'</p><time datetime="'+esc(a.published_at)+'">'+
-      esc(dateFormat.format(new Date(a.published_at)))+'</time> · '+esc(catalog[a.district].name)+'</article>').join(''):
+      esc(dateFormat.format(new Date(a.published_at)))+'</time> · '+esc(catalog[a.district].name)+
+      (canDelete ? '<div class="muni-actions">'+btn('Eliminar','delete-announcement',a.id,'danger')+'</div>' : '')+
+      '</article>').join(''):
       '<p>No hay comunicados publicados para este distrito.</p>';
   }
 
@@ -330,13 +333,23 @@
       '<label>Mensaje<textarea name="mensaje" required maxlength="2000"></textarea></label>'+save;
   }
 
+  function incidentsView() {
+    const list=state.incidents;
+    const content=list===null?'<p>Consultando las incidencias del distrito…</p>':
+      list.length ? list.map(i=>'<article class="muni-card">'+tag(i.category)+'<h3>'+esc(i.route)+'</h3>'+
+        '<p>'+esc(i.message)+'</p><p class="muni-note">'+esc(i.driver)+' · <time datetime="'+esc(i.reported_at)+'">'+
+        esc(dateFormat.format(new Date(i.reported_at)))+'</time></p></article>').join(''):
+        '<p>Aún no hay incidencias registradas en este distrito.</p>';
+    return heading('Incidencias de conductores',districtName(),btn('Actualizar','refresh'))+content;
+  }
+
   function adminView() {
     const items=sections.map(([key,label,symbol])=>'<button type="button" data-muni="'+key+'"'+
       (key===state.section?' aria-current="page"':'')+'>'+app.icon(symbol)+esc(label)+'</button>').join('');
     const content=state.editor?editorView():{
-      overview,trucks:trucksView,routes:routesView,
+      overview,trucks:trucksView,routes:routesView,incidents:incidentsView,
       announcements:()=>heading('Comunicados',districtName(),btn('Publicar comunicado','new-announcement','','primary'))+
-        announcementCards(state.data.announcements),
+        announcementCards(state.data.announcements,true),
     }[state.section]();
     return '<div class="muni-layout"><nav class="muni-nav" aria-label="Panel municipal"><h2>Municipalidad</h2><p>'+
       esc(districtName())+'</p>'+items+'<button type="button" data-muni="logout">Cerrar sesión</button></nav>'+
@@ -361,6 +374,15 @@
       '<div id="muni-resident-announcements">'+announcementCards(state.data.announcements)+'</div></section>';
   }
 
+  function incidentForm(route) {
+    return '<form class="muni-form" data-muni-form="incident"><h2>Reportar incidencia</h2><p>'+esc(route.name)+'</p>'+
+      '<label>Tipo de incidencia<select name="categoria" required aria-label="Tipo de incidencia">'+
+      opt('','Selecciona un tipo','')+incidentTypes.map(type=>opt(type,type)).join('')+'</select></label>'+
+      '<label>Descripción<textarea name="mensaje" required maxlength="1000" rows="3"></textarea></label>'+
+      '<div class="muni-actions"><button class="muni-btn primary" type="submit">Enviar incidencia</button>'+
+      btn('Cancelar','cancel-edit')+'</div></form>';
+  }
+
   function routeCard(route,driver=false) {
     const inService=['running','paused'].includes(route.phase);
     const truckStatus=!route.truck_active?'Camión desactivado':
@@ -368,15 +390,19 @@
     const controls=driver ? '<div class="muni-actions">'+
       (!route.phase?btn('Iniciar recorrido','run-start',route.id,'primary'):'')+
       (inService?btn(route.phase==='running'?'Pausar':'Reanudar','run-'+(route.phase==='running'?'pause':'resume'),route.id)+
-        btn('Finalizar recorrido','run-finish',route.id):'')+'</div>' : '';
+        btn('Finalizar recorrido','run-finish',route.id):'')+
+      btn('Reportar incidencia','report-incident',route.id)+'</div>' : '';
     return '<article class="muni-card"><h3>'+esc(route.name)+'</h3>'+tag(labels[route.phase]||truckStatus)+
       '<p><strong>Horario:</strong> '+esc(period(route))+'</p><p><strong>Camión:</strong> '+
       esc(route.truck_code+' · '+route.truck_name+(route.truck_plate?' · '+route.truck_plate:''))+
       (route.truck_sample?' '+tag('Demostración',true):'')+'</p>'+
-      (route.points.length?mapMarkup(route.points)+'<p class="muni-note">Trazado municipal · Cartografía © OpenStreetMap</p>':'')+
+      (driver||route.points.length ? mapMarkup(route.points)+'<p class="muni-note">'+
+        (route.points.length?'Trazado municipal':'Mapa del distrito. Esta ruta aún no tiene trazado municipal.')+
+        ' · Cartografía © OpenStreetMap</p>' : '')+
       '<ul>'+route.streets.map((street,index)=>'<li>'+esc(street)+
       (route.attended.includes(street)?' · Atendida':driver&&inService?' '+btn('Marcar atendida','attend-street',route.id+':'+index):'')+
-      '</li>').join('')+'</ul>'+controls+'</article>';
+      '</li>').join('')+'</ul>'+controls+
+      (driver&&state.editor?.kind==='incident'&&state.editor.record.id===route.id?incidentForm(route):'')+'</article>';
   }
 
   function driverView() {
@@ -424,7 +450,11 @@
   }
 
   async function refresh(notice='') {
-    state.data=await loadData();
+    if(state.profile==='municipality'&&state.section==='incidents') {
+      state.incidents=(await request('/admin/incidents')).incidents;
+    } else {
+      state.data=await loadData();
+    }
     state.notice=notice;
     state.error='';
     render();
@@ -465,6 +495,11 @@
       render();
       return busy(()=>refresh(),true);
     }
+    if(name==='report-incident') {
+      const route=items.routes.find(r=>r.id===number);
+      if(route) startEditor('incident',route);
+      return;
+    }
     if(name==='view-map'){state.visibleMap=number;return render();}
     if(name==='cancel-edit'){state.editor=null;state.error='';return render();}
     if(['new-truck','new-route','new-announcement'].includes(name)) return startEditor(name.slice(4));
@@ -473,6 +508,10 @@
     if(name==='toggle-truck') {
       const truck=items.trucks.find(t=>t.id===number);
       return mutate('/admin/trucks/'+id,'PATCH',{activo:!truck.active},'Estado del camión actualizado.');
+    }
+    if(name==='delete-announcement'){
+      if(!window.confirm('¿Eliminar este comunicado? Dejará de aparecer para los vecinos y conductores.')) return;
+      return mutate('/admin/announcements/'+id,'DELETE',undefined,'Comunicado eliminado.');
     }
     if(name==='archive-route'&&window.confirm('¿Eliminar esta ruta de la consulta vecinal?')) {
       return mutate('/admin/routes/'+id,'DELETE',undefined,'Ruta eliminada.');
@@ -534,6 +573,7 @@
     if(mode==='login'||mode==='register') return busy(()=>login(form,mode==='register'));
     if(mode==='announcement') return mutate('/admin/announcements','POST',fields,'Comunicado publicado.',true);
     const id=state.editor.record?.id;
+    if(mode==='incident') return mutate('/driver/routes/'+id+'/incidents','POST',fields,'Incidencia enviada a la Municipalidad.',true);
     if(mode==='truck') return mutate('/admin/trucks'+(id?'/'+id:''),id?'PUT':'POST',{
       ...fields,conductor:Number(fields.conductor)||null,activo:form.has('activo'),
     },'Camión guardado.',true);

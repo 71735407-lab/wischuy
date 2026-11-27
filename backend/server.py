@@ -22,6 +22,7 @@ ANNOUNCEMENTS = (
     'Aviso de recolección', 'Cambio de horario', 'Modificación de ruta',
     'Suspensión del servicio', 'Campaña de limpieza', 'Comunicado de emergencia',
 )
+INCIDENT_TYPES = ('Calle bloqueada', 'Vehículo averiado', 'Basura acumulada', 'Problema con residentes', 'Otro')
 TOKEN_TTL = 8 * 60 * 60
 MAX_BODY = 32_768
 
@@ -347,6 +348,29 @@ def update_run(db, account, route_id, data):
     return {'ok': True}
 
 
+def report_incident(db, account, route_id, data):
+    district = account['district']
+    route = route_list(db, district, " AND r.id=? AND r.driver_id=? AND (r.active=1 OR run.id IS NOT NULL)",
+                       (route_id, account['id']))
+    if not route:
+        fail('Ruta no encontrada.', 404)
+    category = option(data.get('categoria'), INCIDENT_TYPES, 'el tipo de incidencia')
+    message = text(data, 'mensaje', 1000)
+    now = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    result = db.execute(
+        'INSERT INTO incidents(district,route_id,driver_id,category,message,reported_at) VALUES(?,?,?,?,?,?)',
+        (district, route_id, account['id'], category, message, now))
+    return {'id': result.lastrowid}
+
+
+def district_incidents(db, district):
+    reports = db.execute(
+        'SELECT i.id,i.category,i.message,i.reported_at,r.name AS route,a.name AS driver '
+        'FROM incidents i JOIN routes r ON r.id=i.route_id JOIN accounts a ON a.id=i.driver_id '
+        'WHERE i.district=? ORDER BY i.id DESC LIMIT 100', (district,))
+    return [dict(report) for report in reports]
+
+
 def dispatch(db, request, method, path, data):
     if method=='GET' and path=='/districts':
         return DISTRICTS
@@ -370,6 +394,8 @@ def dispatch(db, request, method, path, data):
     if path.startswith('/admin/'):
         if role!='municipality':
             fail('Solo el perfil municipal puede administrar el distrito.',403)
+        if method=='GET' and path=='/admin/incidents':
+            return {'incidents': district_incidents(db,district)}
         if method=='GET' and path=='/admin/dashboard':
             return admin_data(db,account)
         if method=='POST' and path=='/admin/trucks':
@@ -389,6 +415,13 @@ def dispatch(db, request, method, path, data):
             check_route(db,district,route_id)
             db.execute('UPDATE routes SET archived=1,active=0 WHERE id=? AND district=?',(route_id,district))
             return {'ok':True}
+        announcement=re.fullmatch(r'/admin/announcements/([1-9]\d{0,17})',path)
+        if announcement and method=='DELETE':
+            deleted=db.execute('DELETE FROM announcements WHERE id=? AND district=?',
+                               (int(announcement[1]),district))
+            if not deleted.rowcount:
+                fail('Comunicado no encontrado.',404)
+            return {'ok': True}
         if method=='POST' and path=='/admin/announcements':
             category=option(data.get('categoria'),ANNOUNCEMENTS,'el tipo de comunicado')
             title=text(data,'titulo',120)
@@ -410,6 +443,9 @@ def dispatch(db, request, method, path, data):
             return {'routes':[public_route(r) for r in route_list(
                 db,district," AND r.driver_id=? AND (r.active=1 OR run.id IS NOT NULL)",(account['id'],))],
                 'announcements':announcement_list(db,district)}
+        report=re.fullmatch(r'/driver/routes/([1-9]\d{0,17})/incidents',path)
+        if report and method=='POST':
+            return report_incident(db,account,int(report[1]),data)
         match=re.fullmatch(r'/driver/routes/([1-9]\d{0,17})/run',path)
         if match and method=='POST':
             return update_run(db,account,int(match[1]),data)

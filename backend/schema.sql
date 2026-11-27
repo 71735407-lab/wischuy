@@ -76,3 +76,16 @@ CREATE TABLE IF NOT EXISTS attended (
 );
 CREATE INDEX IF NOT EXISTS routes_district ON routes(district,archived,active);
 CREATE INDEX IF NOT EXISTS announcements_district ON announcements(district,published_at);
+
+CREATE TABLE IF NOT EXISTS incidents (
+  id INTEGER PRIMARY KEY,
+  district TEXT NOT NULL,
+  route_id INTEGER NOT NULL,
+  driver_id INTEGER NOT NULL,
+  category TEXT NOT NULL,
+  message TEXT NOT NULL,
+  reported_at TEXT NOT NULL,
+  FOREIGN KEY(route_id,district) REFERENCES routes(id,district),
+  FOREIGN KEY(driver_id,district) REFERENCES accounts(id,district)
+);
+CREATE INDEX IF NOT EXISTS incidents_district_order ON incidents(district,id DESC);
