@@ -23,6 +23,8 @@ GitHub Pages sirve la interfaz estática. Despliega la API en un servidor con HT
 
 El comando `serve` usa un servidor de desarrollo. Para publicar, integra `backend.server.application(ruta_de_sqlite, conjunto_de_origenes)` con un servidor WSGI detrás de un proxy HTTPS. Inicializa primero la base con `add-account` o `init-demo`, según el entorno. Limita la frecuencia de solicitudes en el proxy, en especial para `/api/login` y `/api/neighbors`. Restringe el acceso al archivo SQLite y programa copias con la API de respaldo de SQLite. No publiques la base ni contraseñas en el repositorio.
 
+La entrada WSGI incluida en el repositorio es `backend.wsgi:app`. Define `WISCHUY_DB_PATH` con una ruta absoluta dentro del volumen persistente y `WISCHUY_ALLOWED_ORIGINS` con los orígenes HTTPS autorizados, separados por comas. En un servidor con Gunicorn, usa `gunicorn backend.wsgi:app --bind 0.0.0.0:$PORT`. El endpoint `GET /api/districts` sirve para comprobar el estado del servicio. Si vas a cargar el inventario de demostración, ejecuta `init-demo` sobre la misma ruta antes de crear cuentas. El inicio de la API crea el esquema si falta y conserva los registros existentes.
+
 El administrador técnico da de alta a los usuarios privilegiados con `add-account`. El registro web solo crea cuentas vecinales. El distrito y rol quedan vinculados a la cuenta. En la demo pública se puede cambiar de distrito y se limpian las selecciones anteriores. En el servicio conectado, acceder a otro distrito requiere iniciar sesión con una cuenta vinculada a dicho distrito. El autorregistro vecinal registra el distrito elegido, sin comprobación de domicilio. Los comunicados se muestran dentro de la aplicación.
 
 ## Verificar la API
