@@ -1,0 +1,121 @@
+{
+  "cusco": {
+    "name": "Cusco",
+    "streets": [
+      "Plaza Regocijo",
+      "Hauqaypata",
+      "Avenida El Sol",
+      "Calle Almagro",
+      "Calle Garcilaso",
+      "Calle San Bernardo",
+      "Plateros",
+      "Santa Teresa",
+      "Teatro"
+    ],
+    "sectors": [
+      "Centro histórico"
+    ]
+  },
+  "san-jeronimo": {
+    "name": "San Jerónimo",
+    "streets": [
+      "Calle Lima",
+      "Clorinda Matto de Turner",
+      "Calle Hospital"
+    ],
+    "sectors": [
+      "Centro histórico",
+      "Vinocanchón"
+    ]
+  },
+  "san-sebastian": {
+    "name": "San Sebastián",
+    "streets": [
+      "Av. Cusco",
+      "Prolongación Avenida de la Cultura",
+      "Avenida Cusco",
+      "Calle Felipe Sicus",
+      "Calle Manuel Sahuaraura",
+      "Calle San José",
+      "M. Castilla",
+      "Prolongación Calle Bolognesi"
+    ],
+    "sectors": [
+      "Zona urbana"
+    ]
+  },
+  "santiago": {
+    "name": "Santiago",
+    "streets": [
+      "Calle Santisimo",
+      "Plaza Belén",
+      "Avenida Antonio Lorena",
+      "Avenida Túpac Amaru",
+      "Calle Inca",
+      "Calle Los Angeles",
+      "Calle Perú",
+      "Calle Rocopata",
+      "Villa del Sol"
+    ],
+    "sectors": [
+      "Casco urbano"
+    ]
+  },
+  "wanchaq": {
+    "name": "Wanchaq",
+    "streets": [
+      "24 de Junio",
+      "9 de Octubre",
+      "Avenida Diego Cristóbal Túpac Amaru",
+      "Avenida Huayruropata",
+      "Avenida Manco Cápac",
+      "Avenida Pachacútec",
+      "Avenida Tomasa Tito Condemayta",
+      "Avenida de la Cultura",
+      "Pasaje América"
+    ],
+    "sectors": [
+      "Sector Túpac Amaru"
+    ]
+  },
+  "saylla": {
+    "name": "Saylla",
+    "streets": [
+      "Calle Juan Velasco Alvarado",
+      "Calle Independencia",
+      "Av. Cusco",
+      "Avenida Cusco",
+      "Avenida Huascar",
+      "Calle Ignacio Ferro",
+      "Calle Pasión",
+      "Calle San Agustín",
+      "Calle Unión"
+    ],
+    "sectors": [
+      "Centro de Saylla"
+    ]
+  },
+  "poroy": {
+    "name": "Poroy",
+    "streets": [
+      "Carret. Longitudinal de la Sierra Sur",
+      "Estadio Distrital de Poroy",
+      "Estación de tren de Poroy",
+      "Plaza Domingo Echegaray"
+    ],
+    "sectors": [
+      "Centro de Poroy"
+    ]
+  },
+  "ccorca": {
+    "name": "Ccorca",
+    "streets": [
+      "I.E. Ccorca",
+      "Templo Santiago Apóstol",
+      "Plaza de Ccorca"
+    ],
+    "sectors": [
+      "Centro de Ccorca"
+    ]
+  }
+}
