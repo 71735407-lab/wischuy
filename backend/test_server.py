@@ -157,12 +157,23 @@ class MunicipalFlow(unittest.TestCase):
         self.call(run,method='POST',token=driver,data={'accion':'pause'})
         self.call(run,method='POST',token=driver,data={'accion':'resume'})
         self.call(run,method='POST',token=driver,data={'accion':'finish'})
+        incident_path=f'/driver/routes/{route_id}/incidents'
+        incident={'categoria':'Calle bloqueada','mensaje':'Incidencia de prueba'}
+        self.call(incident_path,method='POST',token=other,data=incident,expected=404)
+        self.call(incident_path,method='POST',token=vecino,data=incident,expected=403)
+        self.call(incident_path,method='POST',token=driver,data={**incident,'mensaje':' '},expected=400)
+        incident_id=self.call(incident_path,method='POST',token=driver,data=incident)['id']
+
         self.call(endpoint,method='PUT',token=muni,data={**route,'desde':'08:00'})
         announcement={'categoria':'Cambio de horario','titulo':'Turno actualizado','mensaje':'Aviso de prueba'}
         self.call('/admin/announcements',method='POST',token=muni,data={**announcement,'district':'saylla'},expected=403)
         self.call('/admin/announcements',method='POST',token=muni,data=announcement)
         self.stop_api()
         self.start_api()
+        report=self.call('/admin/incidents',token=muni)['incidents'][0]
+        self.assertEqual((report['id'],report['message'],report['route']), (incident_id,incident['mensaje'],route['nombre']))
+        self.assertEqual(self.call('/admin/incidents',token=foreign)['incidents'],[])
+        self.call('/admin/incidents',token=vecino,expected=403)
         data=self.call('/resident',token=vecino)
         self.assertEqual(data['announcements'][0]['title'],
                          'Turno actualizado')
@@ -171,6 +182,14 @@ class MunicipalFlow(unittest.TestCase):
         self.assertEqual(data['routes'][0]['points'],[[20,30],[60,70]])
         self.assertNotIn('driver',data['routes'][0])
         self.assertEqual(self.call('/resident',token=vecino_foreign),{'routes':[],'announcements':[]})
+        announcement_path=f"/admin/announcements/{data['announcements'][0]['id']}"
+        self.call(announcement_path,method='DELETE',token=foreign,expected=404)
+        self.call(announcement_path,method='DELETE',token=driver,expected=403)
+        self.call(announcement_path,method='DELETE',token=muni)
+        self.assertEqual(self.call('/resident',token=vecino)['announcements'],[])
+        self.assertEqual(self.call('/driver/routes',token=driver)['announcements'],[])
+        self.call(announcement_path,method='DELETE',token=muni,expected=404)
+
         self.call(endpoint,method='DELETE',token=muni)
         self.assertEqual(self.call('/resident',token=vecino)['routes'],[])
         self.call('/logout',method='POST',token=vecino,data={})
